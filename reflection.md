@@ -2,6 +2,17 @@
 
 ## 1. System Design
 
+My app should allow users to add pets, detail their own personal schedule (the user's schedule), describe their pet-caring preferences and their pets' preferences, and view their optimized pet-caring schedule.
+
+BRAINSTORMING OBJECTS:
+
+Class   |       Attributes          |       Methods         |
+Pet | Species, ideal weight, weight, pet's preferences | init, update weight, update preferences |
+User | pets, user schedule, pet-caring preferences, pet-caring schedule | init, add pet, remove pet, update schedule, update pet-caring preferences |
+User schedule | time-specific activites | init, remove activity, add activity |
+Pet-caring schedule | user | init
+Preferences | walking amount, walking time(s), feeding amount, feeding times | init, update walking amount, update walking time(s), update feeding amount, update feeding times |
+
 **a. Initial design**
 
 - Briefly describe your initial UML design.
