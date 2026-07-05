@@ -1,0 +1,94 @@
+classDiagram
+    class Priority {
+        <<enumeration>>
+        LOW
+        MEDIUM
+        HIGH
+    }
+
+    class TimeSlot {
+        +Time start
+        +Time end
+        +overlaps(other) bool
+        +duration_minutes() int
+    }
+
+    class Preferences {
+        +float walkingAmount
+        +List~Time~ walkingTimes
+        +float feedingAmount
+        +List~Time~ feedingTimes
+        +__init__(walkingAmount, walkingTimes, feedingAmount, feedingTimes)
+        +updateWalkingAmount(amount)
+        +updateWalkingTimes(times)
+        +updateFeedingAmount(amount)
+        +updateFeedingTimes(times)
+    }
+
+    class Pet {
+        +String species
+        +float idealWeight
+        +float weight
+        +Preferences preferences
+        +__init__(species, idealWeight, weight, preferences)
+        +updateWeight(weight)
+        +updatePreferences(preferences)
+        +weightAdjustmentFactor() float
+    }
+
+    class CareTask {
+        +String name
+        +Pet pet
+        +Priority priority
+        +int durationMinutes
+        +TimeSlot desiredWindow
+        +TimeSlot scheduledSlot
+        +isScheduled() bool
+    }
+
+    class Activity {
+        +String name
+        +TimeSlot slot
+    }
+
+    class UserSchedule {
+        +List~Activity~ activities
+        +__init__()
+        +addActivity(activity)
+        +removeActivity(activity)
+        +isFree(slot) bool
+    }
+
+    class PetCaringSchedule {
+        +User user
+        +List~CareTask~ tasks
+        +__init__(user)
+        +generate()
+        +explain() List~String~
+    }
+
+    class User {
+        +List~Pet~ pets
+        +UserSchedule userSchedule
+        +Preferences petCaringPreferences
+        +PetCaringSchedule petCaringSchedule
+        +__init__(userSchedule, petCaringPreferences)
+        +addPet(pet)
+        +removePet(pet)
+        +updateSchedule(userSchedule)
+        +updatePetCaringPreferences(preferences)
+        +resolvePreferences(pet) Preferences
+    }
+
+    User "1" --> "0..*" Pet : owns
+    User "1" --> "1" UserSchedule : has
+    User "1" --> "1" PetCaringSchedule : has
+    User "1" --> "1" Preferences : has petCaring
+    Pet "1" --> "1" Preferences : has
+    PetCaringSchedule "1" --> "0..*" CareTask : contains
+    PetCaringSchedule "1" --> "1" User : references
+    CareTask "1" --> "1" Pet : cares for
+    CareTask "1" --> "1" Priority : has
+    CareTask "1" --> "0..1" TimeSlot : desired/scheduled
+    Activity "1" --> "1" TimeSlot : occupies
+    UserSchedule "1" --> "0..*" Activity : contains
