@@ -26,6 +26,7 @@ class Task:
     description: str
     time: time
     frequency: Frequency = Frequency.DAILY
+    duration_minutes: int = 15
     completed: bool = False
 
     def mark_complete(self) -> None:
@@ -40,10 +41,18 @@ class Task:
         """Flip the completion status between done and not done."""
         self.completed = not self.completed
 
+    def end_time(self) -> time:
+        """Return the clock time this task finishes (start + duration), clamped
+        to the same day so it never rolls past 23:59."""
+        total = self.time.hour * 60 + self.time.minute + self.duration_minutes
+        total = min(total, 23 * 60 + 59)
+        return time(total // 60, total % 60)
+
     def __str__(self) -> str:
-        """Return a one-line summary with a status box, time, and frequency."""
+        """Return a one-line summary with status, time, duration, and frequency."""
         box = "✅" if self.completed else "⬜"
-        return f"{box} {self.time.strftime('%H:%M')} — {self.description} ({self.frequency})"
+        return (f"{box} {self.time.strftime('%H:%M')} ({self.duration_minutes}m) "
+                f"— {self.description} ({self.frequency})")
 
 
 class Pet:
@@ -144,6 +153,10 @@ class Scheduler:
         """Only the tasks still to be done."""
         return [t for t in self.all_tasks() if not t.completed]
 
+    def total_duration(self) -> int:
+        """Total minutes of care still pending across all pets."""
+        return sum(t.duration_minutes for t in self.pending_tasks())
+
     def daily_schedule(self) -> list[tuple[Pet, Task]]:
         """The plan for the day: every pending (Pet, Task) pair ordered by time
         so the owner sees what to do and in what order."""
@@ -173,7 +186,8 @@ class Scheduler:
         lines: list[str] = []
         for pet, task in self.daily_schedule():
             lines.append(
-                f"{task.time.strftime('%H:%M')} — {task.description} for "
+                f"{task.time.strftime('%H:%M')}–{task.end_time().strftime('%H:%M')} "
+                f"({task.duration_minutes}m) — {task.description} for "
                 f"{pet.name} ({task.frequency})"
             )
         return lines
@@ -181,7 +195,7 @@ class Scheduler:
     def render_schedule(self, title: str = "Today's Schedule") -> str:
         """Format the day's plan as an aligned, columnar table for the terminal.
 
-        Columns (TIME / status / PET / TASK / FREQ) size themselves to the
+        Columns (TIME / status / PET / TASK / MIN / FREQ) size themselves to the
         widest value so everything lines up regardless of name length."""
         rows = self.daily_schedule()
         heading = f"{title} — {self.owner.name}"
@@ -193,28 +207,31 @@ class Scheduler:
         # Dynamic column widths based on the actual data.
         pet_w = max(len("PET"), *(len(pet.name) for pet, _ in rows))
         task_w = max(len("TASK"), *(len(task.description) for _, task in rows))
+        min_w = max(len("MIN"), *(len(f"{task.duration_minutes}m") for _, task in rows))
         freq_w = max(len("FREQ"), *(len(str(task.frequency)) for _, task in rows))
 
-        def line(t: str, mark: str, pet: str, task: str, freq: str) -> str:
-            return (f" {t:<6} {mark:<1}  {pet:<{pet_w}}  "
-                    f"{task:<{task_w}}  {freq:<{freq_w}}").rstrip()
+        def line(t: str, mark: str, pet: str, task: str, mins: str, freq: str) -> str:
+            return (f" {t:<11} {mark:<1}  {pet:<{pet_w}}  {task:<{task_w}}  "
+                    f"{mins:>{min_w}}  {freq:<{freq_w}}").rstrip()
 
-        header = line("TIME", "✓", "PET", "TASK", "FREQ")
+        header = line("TIME", "✓", "PET", "TASK", "MIN", "FREQ")
         rule = "─" * len(header)
 
         body = [
             line(
-                task.time.strftime("%H:%M"),
+                f"{task.time.strftime('%H:%M')}-{task.end_time().strftime('%H:%M')}",
                 "✅" if task.completed else "⬜",
                 pet.name,
                 task.description,
+                f"{task.duration_minutes}m",
                 str(task.frequency),
             )
             for pet, task in rows
         ]
 
         nxt = rows[0][1]
-        footer = (f"{len(rows)} pending · next: {nxt.description} "
-                  f"@ {nxt.time.strftime('%H:%M')}")
+        total = self.total_duration()
+        footer = (f"{len(rows)} pending · {total} min total · "
+                  f"next: {nxt.description} @ {nxt.time.strftime('%H:%M')}")
 
         return "\n".join([heading, rule, header, rule, *body, rule, footer])

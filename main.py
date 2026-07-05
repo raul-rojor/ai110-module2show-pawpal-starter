@@ -19,10 +19,10 @@ def main() -> None:
     owner.add_pet(luna)
 
     # 2. Add tasks with different times to the pets.
-    mochi.add_task(Task("Morning walk", time(7, 30), Frequency.DAILY))
-    mochi.add_task(Task("Evening walk", time(18, 0), Frequency.DAILY))
-    luna.add_task(Task("Feed", time(8, 0), Frequency.DAILY))
-    luna.add_task(Task("Vet visit", time(15, 0), Frequency.WEEKLY))
+    mochi.add_task(Task("Morning walk", time(7, 30), Frequency.DAILY, duration_minutes=30))
+    mochi.add_task(Task("Evening walk", time(18, 0), Frequency.DAILY, duration_minutes=20))
+    luna.add_task(Task("Feed", time(8, 0), Frequency.DAILY, duration_minutes=10))
+    luna.add_task(Task("Vet visit", time(15, 0), Frequency.WEEKLY, duration_minutes=45))
 
     # 3. Build the schedule and print it, ordered by time across all pets.
     scheduler = Scheduler(owner)

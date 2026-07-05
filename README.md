@@ -46,15 +46,16 @@ pip install -r requirements.txt
 
 Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
 
-────────────────────────────────────
- TIME   ✓  PET    TASK          FREQ
-────────────────────────────────────
- 07:30  ⬜  Mochi  Morning walk  daily
- 08:00  ⬜  Luna   Feed          daily
- 15:00  ⬜  Luna   Vet visit     weekly
- 18:00  ⬜  Mochi  Evening walk  daily
-────────────────────────────────────
-4 pending · next: Morning walk @ 07:30
+Today's Schedule — Jordan
+──────────────────────────────────────────────
+ TIME        ✓  PET    TASK          MIN  FREQ
+──────────────────────────────────────────────
+ 07:30-08:00 ⬜  Mochi  Morning walk  30m  daily
+ 08:00-08:10 ⬜  Luna   Feed          10m  daily
+ 15:00-15:45 ⬜  Luna   Vet visit     45m  weekly
+ 18:00-18:20 ⬜  Mochi  Evening walk  20m  daily
+──────────────────────────────────────────────
+4 pending · 105 min total · next: Morning walk @ 07:30
 
 ## 🧪 Testing PawPal+
 
