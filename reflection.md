@@ -16,12 +16,16 @@ Preferences | walking amount, walking time(s), feeding amount, feeding times | i
 **a. Initial design**
 
 - Briefly describe your initial UML design.
+My initital UML design includes 5 classes. The User class has a list of Pet objects, a UserSchedule object, a Preferences object, and a PetCaringSchedule object. The Pet class exists to instantiate Pet objects which are owned by a User object and each Pet also has a Preferences object. The UserSchedule class and the PetCaringSchedule exist for User objects to each have one instance of each of the two classes. The Preferences class exists for User and Pet objects to each have a Preferences object.
 - What classes did you include, and what responsibilities did you assign to each?
+I included User, Pet, UserSchedule, PetCaringSchedule, Activity, and Preferences classes. The Pet class holds one pet's data and allows updates to their weight and preferences, the User class owns pets and has personal and pet-caring schedules, the Preferences class stores the walking and pet feeding habits preferred by their owning object (user or pet), the Activity class represents one schedule entry, the UserSchedule class holds the owning user's personal schedule, and the PetCaringSchedule holds the user's pet-caring schedule.
 
 **b. Design changes**
 
 - Did your design change during implementation?
+Yes, my design changed after recieving AI feedback.
 - If yes, describe at least one change and why you made it.
+The classes were changed to only these four classes -- Owner, Pet, Task, and Scheduler. The reason for this change is because the instructions at this point of the project now specify to use these particular classes, so my AI assistant had to adjust the logic to these classes.
 
 ---
 

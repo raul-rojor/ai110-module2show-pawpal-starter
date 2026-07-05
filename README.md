@@ -28,7 +28,7 @@ Your final app should:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -46,13 +46,15 @@ pip install -r requirements.txt
 
 Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
 
-```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
-```
+────────────────────────────────────
+ TIME   ✓  PET    TASK          FREQ
+────────────────────────────────────
+ 07:30  ⬜  Mochi  Morning walk  daily
+ 08:00  ⬜  Luna   Feed          daily
+ 15:00  ⬜  Luna   Vet visit     weekly
+ 18:00  ⬜  Mochi  Evening walk  daily
+────────────────────────────────────
+4 pending · next: Morning walk @ 07:30
 
 ## 🧪 Testing PawPal+
 
