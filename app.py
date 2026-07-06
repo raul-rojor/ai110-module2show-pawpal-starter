@@ -9,33 +9,17 @@ st.title("🐾 PawPal+")
 
 st.markdown(
     """
-Welcome to the PawPal+ starter app.
-
-This file is intentionally thin. It gives you a working Streamlit app so you can start quickly,
-but **it does not implement the project logic**. Your job is to design the system and build it.
-
-Use this app as your interactive demo once your backend classes/functions exist.
+Plan the day's care for all of your pets in one place. Add pets and tasks below and
+PawPal+ builds a **time-ordered schedule**, flags **timing conflicts**, and lets you
+**filter** by pet or status — all powered by the `Scheduler` logic layer.
 """
 )
 
-with st.expander("Scenario", expanded=True):
+with st.expander("Scenario", expanded=False):
     st.markdown(
         """
 **PawPal+** is a pet care planning assistant. It helps a pet owner plan care tasks
 for their pet(s) based on constraints like time, priority, and preferences.
-
-You will design and implement the scheduling logic and connect it to this Streamlit UI.
-"""
-    )
-
-with st.expander("What you need to build", expanded=True):
-    st.markdown(
-        """
-At minimum, your system should:
-- Represent pet care tasks (what needs to happen, how long it takes, priority)
-- Represent the pet and the owner (basic info and preferences)
-- Build a plan/schedule for a day that chooses and orders tasks based on constraints
-- Explain the plan (why each task was chosen and when it happens)
 """
     )
 
@@ -112,32 +96,122 @@ else:
             f"for {pet.name}."
         )
 
-# Show every task across all pets, pulled through the Owner's public accessor.
-all_tasks = owner.iter_pet_tasks()
-if all_tasks:
-    st.write("Current tasks:")
-    st.table([
-        {
-            "pet": pet.name,
-            "task": task.description,
-            "time": task.time.strftime("%H:%M"),
-            "duration": f"{task.duration_minutes} min",
-            "priority": str(task.priority),
-            "frequency": str(task.frequency),
-            "done": task.completed,
-        }
-        for pet, task in all_tasks
-    ])
-
 st.divider()
 
-st.subheader("Build Schedule")
-st.caption("Generates a time-ordered plan across all of your pets.")
+# One Scheduler drives every view below; it reads tasks through the Owner's
+# public accessors, so the UI never touches Pet internals directly.
+scheduler = Scheduler(owner)
 
-if st.button("Generate schedule"):
-    scheduler = Scheduler(owner)
-    if scheduler.pending_tasks():
-        # Monospace so the aligned columns line up.
-        st.code(scheduler.render_schedule(), language=None)
+
+def strip_icon(msg: str) -> str:
+    """Drop the leading ⚠️ from a Scheduler warning string so it isn't doubled
+    up next to st.warning/st.info's own built-in icon."""
+    return msg.removeprefix("⚠️").strip()
+
+
+def task_rows(pairs):
+    """Turn (pet_name, task) pairs into aligned dict rows for st.table."""
+    return [
+        {
+            "Time": f"{task.time.strftime('%H:%M')}–{task.end_time().strftime('%H:%M')}",
+            "Pet": pet_name,
+            "Task": task.description,
+            "Min": task.duration_minutes,
+            "Priority": str(task.priority),
+            "Frequency": str(task.frequency),
+            "Status": "✅ Done" if task.completed else "⬜ Pending",
+        }
+        for pet_name, task in pairs
+    ]
+
+
+st.subheader("📋 Your Day's Plan")
+
+if not scheduler.all_tasks():
+    st.info("Nothing planned yet — add a pet and some tasks above to see the schedule.")
+else:
+    # Quick action first: completing a task here (before the views below are
+    # built) means the schedule, totals, and conflict checks all reflect it
+    # immediately in this same run.
+    schedulable = scheduler.daily_schedule()
+    if schedulable:
+        with st.expander("✅ Mark a task complete"):
+            options = {
+                f"{task.time.strftime('%H:%M')} — {task.description} ({pet.name})": task
+                for pet, task in schedulable
+            }
+            done_label = st.selectbox("Which task did you finish?", list(options))
+            if st.button("Mark done"):
+                finished = options[done_label]
+                follow_up = scheduler.mark_task_complete(finished)
+                if follow_up is not None:
+                    st.success(
+                        f"'{finished.description}' done — its next occurrence is "
+                        f"auto-scheduled for {follow_up.due_date.strftime('%b %d')}."
+                    )
+                else:
+                    st.success(f"'{finished.description}' done. (One-off — it won't repeat.)")
+
+    # Conflicts come first: they're the one thing a pet owner can't resolve just
+    # by working down the list, because two tasks want them at the same instant.
+    conflicts = scheduler.detect_conflicts()
+    if conflicts:
+        st.warning(
+            f"**{len(conflicts)} timing conflict"
+            f"{'s' if len(conflicts) > 1 else ''} found.** Two tasks need you at "
+            "the same moment — you can't be in two places at once, so consider "
+            "moving one earlier or later."
+        )
+        for conflict in conflicts:
+            st.warning(strip_icon(conflict))
     else:
-        st.info("Nothing to schedule yet — add a pet and some tasks first.")
+        st.success("No timing conflicts — every task has its own slot. 🎉")
+
+    # Preference nudges are softer than conflicts (the plan still works), so
+    # they're shown as informational notes rather than warnings.
+    for note in scheduler.preference_warnings():
+        st.info(strip_icon(note))
+
+    st.markdown("#### Sorted schedule")
+    # daily_schedule() is already time-ordered with priority breaking ties, so
+    # this table shows the Scheduler's ordering — the UI adds no sorting of its own.
+    plan = scheduler.daily_schedule()
+    if plan:
+        st.table(task_rows([(pet.name, task) for pet, task in plan]))
+        total = sum(task.duration_minutes for _, task in plan)
+        next_up = plan[0][1]
+        st.caption(
+            f"{len(plan)} task(s) pending · {total} min total · "
+            f"next up: **{next_up.description}** at {next_up.time.strftime('%H:%M')}"
+        )
+    else:
+        st.success("All caught up — nothing pending for today. 🎉")
+
+    with st.expander("Terminal view"):
+        # The Scheduler's own aligned-column renderer, kept for a compact text view.
+        st.code(scheduler.render_schedule(), language=None)
+
+    st.divider()
+    st.subheader("🔎 Browse tasks")
+
+    # Filtering is delegated straight to Scheduler.filter_tasks(); the selectboxes
+    # just translate the UI choices into its (pet_name, completed) arguments.
+    col_pet, col_status = st.columns(2)
+    with col_pet:
+        pet_filter = st.selectbox("Pet", ["All pets"] + [p.name for p in pets])
+    with col_status:
+        status_filter = st.selectbox("Status", ["All", "Pending", "Completed"])
+
+    pet_arg = None if pet_filter == "All pets" else pet_filter
+    completed_arg = {"All": None, "Pending": False, "Completed": True}[status_filter]
+
+    filtered = scheduler.filter_tasks(completed=completed_arg, pet_name=pet_arg)
+    if filtered:
+        # Map each task back to its pet for display, then show in time order to
+        # match the Scheduler's sort_by_time() ordering.
+        pet_of = {id(task): pet.name for pet, task in owner.iter_pet_tasks()}
+        ordered = sorted(filtered, key=lambda t: t.time)
+        st.table(task_rows([(pet_of.get(id(t), "—"), t) for t in ordered]))
+        st.caption(f"{len(filtered)} task(s) match.")
+    else:
+        st.info("No tasks match those filters.")
