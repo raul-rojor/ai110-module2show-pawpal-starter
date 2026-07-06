@@ -34,13 +34,16 @@ The classes were changed to only these four classes -- Owner, Pet, Task, and Sch
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
-My scheduler considers time, priority, 
+My scheduler considers time, priority, and owner preferences.
 - How did you decide which constraints mattered most?
+I looked at the instructions to decide which constraints mattered most and I also asked AI for potential practical additions to the app.
 
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
+My scheduler does not automatically fix task time conflicts or tasks not matching owner preferences; it only points out conflicts while giving the user the judgement to alter their schedule.
 - Why is that tradeoff reasonable for this scenario?
+Giving the owner greater autonomy by not automatically changing tasks according to time or preference conflicts makes it so that users are not alienated from their pet schedule and are instead actively creating it using the app's tools.
 
 ---
 

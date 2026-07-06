@@ -115,9 +115,9 @@ Sample test output:
 
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | `Scheduler.sort_by_time`, `Scheduler.daily_schedule` | Ordered by start time; priority breaks ties between same-time tasks |
+| Sorting | `Scheduler.sort_by_time`, `Scheduler.daily_schedule` | Ordered by start time; priority breaks ties between same-time tasks |
 | Filtering | `Scheduler.filter_tasks`, `Scheduler.pending_tasks` | By completion status and/or pet name; schedule also drops future-dated tasks |
-| Conflict handling | `Scheduler.detect_conflicts` | Flags tasks (same or different pet) sharing a start time; returns warnings instead of crashing |
+| Conflict detection | `Scheduler.detect_conflicts` | Flags tasks (same or different pet) sharing a start time; returns warnings instead of crashing |
 | Owner preferences | `Preferences`, `Scheduler.preference_warnings` | Preferred windows per activity keyword (e.g. walks in the morning); flags tasks scheduled outside them |
 | Recurring tasks | `Task.next_occurrence`, `Scheduler.mark_task_complete` | Completing a daily/weekly task auto-creates the next occurrence (+1 day / +7 days via `timedelta`) |
 
