@@ -21,16 +21,22 @@ def main() -> None:
     # 2. Add tasks with different times and priorities to the pets.
     #    Note the two 08:00 tasks: priority breaks the tie so Meds (HIGH)
     #    lands before Feed (MEDIUM).
-    mochi.add_task(Task("Morning walk", time(7, 30), Frequency.DAILY, duration_minutes=30, priority=Priority.MEDIUM))
+    morning_walk = Task("Morning walk", time(7, 30), Frequency.DAILY, duration_minutes=30, priority=Priority.MEDIUM)
+    mochi.add_task(morning_walk)
     mochi.add_task(Task("Meds", time(8, 0), Frequency.DAILY, duration_minutes=5, priority=Priority.HIGH))
     mochi.add_task(Task("Evening walk", time(18, 0), Frequency.DAILY, duration_minutes=20, priority=Priority.LOW))
     luna.add_task(Task("Feed", time(8, 0), Frequency.DAILY, duration_minutes=10, priority=Priority.MEDIUM))
     luna.add_task(Task("Vet visit", time(15, 0), Frequency.WEEKLY, duration_minutes=45, priority=Priority.HIGH))
 
-    # 3. Mark one task done so the completion filter has something to hide.
-    mochi.get_tasks()[0].mark_complete()  # Morning walk
-
     scheduler = Scheduler(owner)
+
+    # 3. Completing a recurring task auto-creates its next occurrence: the
+    #    original is marked done and a fresh copy is added for the next day.
+    follow_up = scheduler.mark_task_complete(morning_walk)
+    print(
+        f"Completed '{morning_walk.description}' (due {morning_walk.due_date}). "
+        f"Next occurrence auto-scheduled for {follow_up.due_date}.\n"
+    )
 
     # 4. Sorting: tasks come back in time order even though they were added
     #    out of order above (18:00 before 08:00, etc.).

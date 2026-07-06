@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import time
+from dataclasses import dataclass, field
+from datetime import date, time, timedelta
 from enum import Enum
 
 
@@ -41,6 +41,7 @@ class Task:
     frequency: Frequency = Frequency.DAILY
     duration_minutes: int = 15
     priority: Priority = Priority.MEDIUM
+    due_date: date = field(default_factory=date.today)
     completed: bool = False
 
     def mark_complete(self) -> None:
@@ -54,6 +55,29 @@ class Task:
     def toggle(self) -> None:
         """Flip the completion status between done and not done."""
         self.completed = not self.completed
+
+    def next_occurrence(self) -> Task | None:
+        """Build the follow-up for a recurring task: a fresh, not-yet-done copy
+        due on the next date this task's frequency calls for.
+
+        Daily tasks advance by one day and weekly tasks by seven, computed with
+        timedelta so month/year rollovers stay correct. Returns None for one-off
+        (ONCE) tasks, which don't repeat."""
+        intervals = {
+            Frequency.DAILY: timedelta(days=1),
+            Frequency.WEEKLY: timedelta(weeks=1),
+        }
+        delta = intervals.get(self.frequency)
+        if delta is None:  # Frequency.ONCE — nothing to repeat.
+            return None
+        return Task(
+            description=self.description,
+            time=self.time,
+            frequency=self.frequency,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            due_date=self.due_date + delta,
+        )
 
     def end_time(self) -> time:
         """Return the clock time this task finishes (start + duration), clamped
@@ -171,12 +195,17 @@ class Scheduler:
         """Total minutes of care still pending across all pets."""
         return sum(t.duration_minutes for t in self.pending_tasks())
 
-    def daily_schedule(self) -> list[tuple[Pet, Task]]:
-        """The plan for the day: every pending (Pet, Task) pair ordered by time,
-        with priority breaking ties so the more urgent of two same-time tasks
-        comes first."""
+    def daily_schedule(self, on_date: date | None = None) -> list[tuple[Pet, Task]]:
+        """The plan for a single day: pending (Pet, Task) pairs due on or before
+        `on_date` (default today), ordered by time with priority breaking ties
+        so the more urgent of two same-time tasks comes first.
+
+        Using 'on or before' means an overdue task carries over instead of
+        silently vanishing, while future-dated occurrences (e.g. tomorrow's
+        auto-created recurrence) stay out until their day arrives."""
+        on_date = on_date or date.today()
         pending = [(pet, task) for pet, task in self.owner.iter_pet_tasks()
-                   if not task.completed]
+                   if not task.completed and task.due_date <= on_date]
         return sorted(pending, key=lambda pair: (pair[1].time, pair[1].priority.value))
 
     def tasks_for_pet(self, pet: Pet) -> list[Task]:
@@ -223,6 +252,23 @@ class Scheduler:
         """The earliest pending task, or None if everything is done."""
         schedule = self.daily_schedule()
         return schedule[0] if schedule else None
+
+    def mark_task_complete(self, task: Task) -> Task | None:
+        """Mark a task done and, if it recurs (daily/weekly), add its next
+        occurrence to the owning pet so the plan refills itself automatically.
+
+        Returns the newly created follow-up Task, or None if the task is a
+        one-off or doesn't belong to this owner. Finds the owning pet through
+        the Owner's public accessors and adds via Pet.add_task, so the Scheduler
+        still never reaches into Pet internals."""
+        for pet, existing in self.owner.iter_pet_tasks():
+            if existing is task:
+                task.mark_complete()
+                follow_up = task.next_occurrence()
+                if follow_up is not None:
+                    pet.add_task(follow_up)
+                return follow_up
+        return None
 
     def explain(self) -> list[str]:
         """Human-readable plan: one line per pending task, in order, naming the
@@ -276,7 +322,9 @@ class Scheduler:
         ]
 
         nxt = rows[0][1]
-        total = self.total_duration()
+        # Sum only the rows shown (today + overdue) so the footer matches the
+        # table; total_duration() counts every pending task regardless of date.
+        total = sum(task.duration_minutes for _, task in rows)
         footer = (f"{len(rows)} pending · {total} min total · "
                   f"next: {nxt.description} @ {nxt.time.strftime('%H:%M')}")
 

@@ -44,19 +44,44 @@ pip install -r requirements.txt
 
 ## 🖥️ Sample Output
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
+Running `python3 main.py` adds tasks out of order, completes a recurring task
+(which auto-creates its next occurrence), then demonstrates sorting and filtering
+before printing the day's plan. The two dates are shown as placeholders here
+because they're computed from the current date at runtime:
+
+```
+Completed 'Morning walk' (due <today>). Next occurrence auto-scheduled for <today + 1 day>.
+
+All tasks sorted by time:
+  ✅ 07:30 (30m) — Morning walk [Medium] (daily)
+  ⬜ 07:30 (30m) — Morning walk [Medium] (daily)
+  ⬜ 08:00 (5m) — Meds [High] (daily)
+  ⬜ 08:00 (10m) — Feed [Medium] (daily)
+  ⬜ 15:00 (45m) — Vet visit [High] (weekly)
+  ⬜ 18:00 (20m) — Evening walk [Low] (daily)
+
+Luna's tasks only:
+  ⬜ 08:00 (10m) — Feed [Medium] (daily)
+  ⬜ 15:00 (45m) — Vet visit [High] (weekly)
+
+Still-pending tasks:
+  ⬜ 08:00 (5m) — Meds [High] (daily)
+  ⬜ 18:00 (20m) — Evening walk [Low] (daily)
+  ⬜ 07:30 (30m) — Morning walk [Medium] (daily)
+  ⬜ 08:00 (10m) — Feed [Medium] (daily)
+  ⬜ 15:00 (45m) — Vet visit [High] (weekly)
 
 Today's Schedule — Jordan
 ──────────────────────────────────────────────────────
  TIME        ✓  PET    TASK          MIN  PRI     FREQ
 ──────────────────────────────────────────────────────
- 07:30-08:00 ⬜  Mochi  Morning walk  30m  Medium  daily
  08:00-08:05 ⬜  Mochi  Meds           5m  High    daily
  08:00-08:10 ⬜  Luna   Feed          10m  Medium  daily
  15:00-15:45 ⬜  Luna   Vet visit     45m  High    weekly
  18:00-18:20 ⬜  Mochi  Evening walk  20m  Low     daily
 ──────────────────────────────────────────────────────
-5 pending · 110 min total · next: Morning walk @ 07:30
+4 pending · 80 min total · next: Meds @ 08:00
+```
 
 ## 🧪 Testing PawPal+
 
