@@ -46,8 +46,9 @@ pip install -r requirements.txt
 
 Running `python3 main.py` adds tasks out of order (with two deliberate time
 clashes), completes a recurring task (which auto-creates its next occurrence),
-then demonstrates sorting, filtering, and conflict detection before printing the
-day's plan. The two dates are shown as placeholders here because they're computed
+then demonstrates sorting, filtering, conflict detection, and preference checks
+before printing the day's plan. The owner prefers walks 06:00–10:00 and feeding
+06:00–09:00. The two dates are shown as placeholders here because they're computed
 from the current date at runtime:
 
 ```
@@ -89,6 +90,9 @@ Today's Schedule — Jordan
 Schedule warnings:
   ⚠️  Conflict at 08:00 — 2 tasks overlap: Meds (Mochi), Feed (Luna).
   ⚠️  Conflict at 18:00 — 2 tasks overlap: Playtime (Mochi), Evening walk (Mochi).
+
+Preference warnings:
+  ⚠️  Evening walk for Mochi is at 18:00, outside preferred window(s): 06:00–10:00.
 ```
 
 ## 🧪 Testing PawPal+
@@ -114,6 +118,7 @@ Sample test output:
 | Task sorting | `Scheduler.sort_by_time`, `Scheduler.daily_schedule` | Ordered by start time; priority breaks ties between same-time tasks |
 | Filtering | `Scheduler.filter_tasks`, `Scheduler.pending_tasks` | By completion status and/or pet name; schedule also drops future-dated tasks |
 | Conflict handling | `Scheduler.detect_conflicts` | Flags tasks (same or different pet) sharing a start time; returns warnings instead of crashing |
+| Owner preferences | `Preferences`, `Scheduler.preference_warnings` | Preferred windows per activity keyword (e.g. walks in the morning); flags tasks scheduled outside them |
 | Recurring tasks | `Task.next_occurrence`, `Scheduler.mark_task_complete` | Completing a daily/weekly task auto-creates the next occurrence (+1 day / +7 days via `timedelta`) |
 
 ## 📸 Demo Walkthrough

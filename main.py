@@ -18,6 +18,11 @@ def main() -> None:
     owner.add_pet(mochi)
     owner.add_pet(luna)
 
+    # Owner preferences: walks in the morning, feeding early. A task booked
+    # outside its preferred window(s) gets flagged later (see step 8).
+    owner.preferences.prefer("walk", time(6, 0), time(10, 0))
+    owner.preferences.prefer("feed", time(6, 0), time(9, 0))
+
     # 2. Add tasks with different times and priorities to the pets. Two pairs
     #    deliberately clash so the conflict check has something to catch:
     #      - 08:00 across pets: Meds (Mochi) and Feed (Luna)
@@ -69,6 +74,17 @@ def main() -> None:
             print(f"  {warning}")
     else:
         print("No scheduling conflicts. 🎉")
+
+    # 8. Preference check: warn about tasks scheduled outside the owner's
+    #    preferred windows (e.g. an evening walk when walks are a morning thing).
+    print()
+    pref_warnings = scheduler.preference_warnings()
+    if pref_warnings:
+        print("Preference warnings:")
+        for warning in pref_warnings:
+            print(f"  {warning}")
+    else:
+        print("All tasks fall within preferred windows. 🎉")
 
 
 if __name__ == "__main__":

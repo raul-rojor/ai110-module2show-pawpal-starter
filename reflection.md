@@ -34,6 +34,7 @@ The classes were changed to only these four classes -- Owner, Pet, Task, and Sch
 **a. Constraints and priorities**
 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
+My scheduler considers time, priority, 
 - How did you decide which constraints mattered most?
 
 **b. Tradeoffs**

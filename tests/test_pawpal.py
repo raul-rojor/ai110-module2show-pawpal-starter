@@ -10,7 +10,7 @@ from datetime import date, time, timedelta
 # Make pawpal_system.py (in the project root) importable from this subfolder.
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pawpal_system import Task, Pet, Owner, Scheduler, Priority, Frequency
+from pawpal_system import Task, Pet, Owner, Scheduler, Priority, Frequency, TimeWindow
 
 
 def test_mark_complete_changes_status():
@@ -134,6 +134,45 @@ def test_detect_conflicts_returns_empty_when_no_overlap():
     pet.add_task(Task("Feed", time(8, 0)))
 
     assert Scheduler(owner).detect_conflicts() == []
+
+
+def test_timewindow_contains_is_inclusive():
+    """A window includes its endpoints and excludes times outside it."""
+    window = TimeWindow(time(6, 0), time(10, 0))
+
+    assert window.contains(time(6, 0)) is True
+    assert window.contains(time(8, 30)) is True
+    assert window.contains(time(10, 0)) is True
+    assert window.contains(time(10, 1)) is False
+
+
+def test_preference_warning_for_task_outside_window():
+    """A walk booked outside the owner's preferred morning window is flagged."""
+    owner = Owner("Jordan")
+    pet = Pet("Mochi", "dog")
+    owner.add_pet(pet)
+    owner.preferences.prefer("walk", time(6, 0), time(10, 0))
+    pet.add_task(Task("Evening walk", time(18, 0)))
+
+    warnings = Scheduler(owner).preference_warnings()
+
+    assert len(warnings) == 1
+    assert "Evening walk" in warnings[0]
+    assert "06:00–10:00" in warnings[0]
+
+
+def test_no_preference_warning_when_task_inside_any_window():
+    """Feeding has two preferred windows; a task inside either raises no warning,
+    and a task with no matching preference is never flagged."""
+    owner = Owner("Jordan")
+    pet = Pet("Luna", "cat")
+    owner.add_pet(pet)
+    owner.preferences.prefer("feed", time(6, 0), time(9, 0))
+    owner.preferences.prefer("feed", time(17, 0), time(19, 0))
+    pet.add_task(Task("Feed", time(18, 0)))       # inside the evening window
+    pet.add_task(Task("Vet visit", time(15, 0)))  # no preference for "vet"
+
+    assert Scheduler(owner).preference_warnings() == []
 
 
 def test_daily_schedule_excludes_future_dated_tasks():

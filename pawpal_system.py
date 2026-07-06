@@ -32,6 +32,56 @@ class Priority(Enum):
         return self.name.capitalize()
 
 
+@dataclass(frozen=True)
+class TimeWindow:
+    """An inclusive clock-time window (e.g. 06:00–10:00) used to express when an
+    owner prefers a kind of activity to happen."""
+    start: time
+    end: time
+
+    def contains(self, t: time) -> bool:
+        """True if `t` falls within this window (endpoints included)."""
+        return self.start <= t <= self.end
+
+    def __str__(self) -> str:
+        """Return the window as 'HH:MM–HH:MM' for display."""
+        return f"{self.start.strftime('%H:%M')}–{self.end.strftime('%H:%M')}"
+
+
+class Preferences:
+    """An owner's preferred time windows for kinds of care, keyed by an activity
+    keyword that is matched case-insensitively against a task's description
+    (e.g. 'walk' matches 'Morning walk' and 'Evening walk').
+
+    A kind of activity can have several acceptable windows, so feeding in the
+    morning *and* the evening is expressible."""
+
+    def __init__(self) -> None:
+        """Create an empty set of preferences."""
+        self.windows: dict[str, list[TimeWindow]] = {}
+
+    def prefer(self, activity: str, start: time, end: time) -> None:
+        """Register a preferred window for any task whose description contains
+        `activity`. Call repeatedly with the same activity to allow more than
+        one window."""
+        self.windows.setdefault(activity.lower(), []).append(TimeWindow(start, end))
+
+    def windows_for(self, description: str) -> list[TimeWindow]:
+        """Every preferred window whose activity keyword appears in `description`."""
+        text = description.lower()
+        matches: list[TimeWindow] = []
+        for keyword, windows in self.windows.items():
+            if keyword in text:
+                matches.extend(windows)
+        return matches
+
+    def is_satisfied(self, task: Task) -> bool:
+        """True if the task has no matching preference (nothing to violate) or its
+        start time falls inside at least one preferred window."""
+        windows = self.windows_for(task.description)
+        return not windows or any(w.contains(task.time) for w in windows)
+
+
 @dataclass
 class Task:
     """A single activity for a pet: what to do, when, how often, and whether
@@ -132,9 +182,11 @@ class Owner:
     reaching into each Pet's internals."""
 
     def __init__(self, name: str) -> None:
-        """Create an owner with a name and an empty list of pets."""
+        """Create an owner with a name, an empty list of pets, and an empty set
+        of care preferences."""
         self.name = name
         self.pets: list[Pet] = []
+        self.preferences = Preferences()
 
     def add_pet(self, pet: Pet) -> None:
         """Add a pet to this owner."""
@@ -274,6 +326,26 @@ class Scheduler:
                 warnings.append(
                     f"⚠️  Conflict at {start.strftime('%H:%M')} — "
                     f"{len(pairs)} tasks overlap: {who}."
+                )
+        return warnings
+
+    def preference_warnings(self, on_date: date | None = None) -> list[str]:
+        """Flag scheduled tasks that fall outside the owner's preferred time
+        window(s) for that kind of activity.
+
+        Returns warning strings — empty when everything fits — so the plan can
+        note a mismatch (e.g. a walk booked outside the preferred morning window)
+        instead of refusing to schedule it. Tasks with no matching preference are
+        never flagged."""
+        prefs = self.owner.preferences
+        warnings: list[str] = []
+        for pet, task in self.daily_schedule(on_date):
+            if not prefs.is_satisfied(task):
+                allowed = ", ".join(str(w) for w in prefs.windows_for(task.description))
+                warnings.append(
+                    f"⚠️  {task.description} for {pet.name} is at "
+                    f"{task.time.strftime('%H:%M')}, outside preferred window(s): "
+                    f"{allowed}."
                 )
         return warnings
 
