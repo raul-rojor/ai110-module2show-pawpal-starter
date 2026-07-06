@@ -98,17 +98,21 @@ Preference warnings:
 ## 🧪 Testing PawPal+
 
 ```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
+.venv/bin/python -m pytest tests/test_pawpal.py
 ```
 
 Sample test output:
 
 ```
-# Paste your pytest output here
+================================================================ test session starts ================================================================
+platform darwin -- Python 3.13.13, pytest-9.1.1, pluggy-1.6.0
+rootdir: /Users/rrn/ai110-module2show-pawpal-starter
+plugins: anyio-4.14.1
+collected 28 items                                                                                                                                  
+
+tests/test_pawpal.py ............................                                                                                             [100%]
+
+================================================================ 28 passed in 0.02s =================================================================
 ```
 
 ## 📐 Smarter Scheduling

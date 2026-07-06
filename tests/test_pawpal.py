@@ -192,3 +192,240 @@ def test_daily_schedule_excludes_future_dated_tasks():
     assert overdue in scheduled  # carries over
     assert today in scheduled
     assert tomorrow not in scheduled  # future occurrence stays hidden
+
+
+# ---------------------------------------------------------------------------
+# Sorting correctness — tasks come back in chronological order.
+# ---------------------------------------------------------------------------
+
+def test_sort_by_time_returns_chronological_order():
+    """sort_by_time() orders every task earliest-first regardless of the order
+    they were added and regardless of which pet they belong to."""
+    owner = Owner("Jordan")
+    mochi = Pet("Mochi", "dog")
+    luna = Pet("Luna", "cat")
+    owner.add_pet(mochi)
+    owner.add_pet(luna)
+
+    # Deliberately added out of chronological order and interleaved by pet.
+    mochi.add_task(Task("Evening walk", time(18, 0)))
+    luna.add_task(Task("Breakfast", time(6, 30)))
+    mochi.add_task(Task("Lunch", time(12, 0)))
+    luna.add_task(Task("Midnight check", time(23, 45)))
+    mochi.add_task(Task("Dawn meds", time(5, 0)))
+
+    ordered = [t.time for t in Scheduler(owner).sort_by_time()]
+
+    assert ordered == sorted(ordered)
+    assert ordered == [time(5, 0), time(6, 30), time(12, 0), time(18, 0), time(23, 45)]
+
+
+def test_sort_by_time_on_empty_owner_returns_empty_list():
+    """Sorting with no pets/tasks is a no-op, not an error."""
+    assert Scheduler(Owner("Jordan")).sort_by_time() == []
+
+
+def test_tasks_for_pet_are_time_ordered():
+    """A single pet's pending tasks come back earliest-first."""
+    owner = Owner("Jordan")
+    pet = Pet("Mochi", "dog")
+    owner.add_pet(pet)
+    pet.add_task(Task("Dinner", time(19, 0)))
+    pet.add_task(Task("Breakfast", time(7, 0)))
+
+    ordered = [t.description for t in Scheduler(owner).tasks_for_pet(pet)]
+
+    assert ordered == ["Breakfast", "Dinner"]
+
+
+# ---------------------------------------------------------------------------
+# Recurrence logic — completing a recurring task refills the plan.
+# ---------------------------------------------------------------------------
+
+def test_recurring_follow_up_preserves_task_attributes():
+    """The auto-created next occurrence copies description, time, frequency,
+    duration and priority — only the due date advances and completion resets."""
+    owner = Owner("Jordan")
+    pet = Pet("Mochi", "dog")
+    owner.add_pet(pet)
+    walk = Task("Walk", time(7, 30), Frequency.DAILY, duration_minutes=45,
+                priority=Priority.HIGH, due_date=date(2026, 1, 1))
+    pet.add_task(walk)
+
+    follow_up = Scheduler(owner).mark_task_complete(walk)
+
+    assert follow_up.description == "Walk"
+    assert follow_up.time == time(7, 30)
+    assert follow_up.frequency is Frequency.DAILY
+    assert follow_up.duration_minutes == 45
+    assert follow_up.priority is Priority.HIGH
+    assert follow_up.completed is False
+
+
+def test_completed_recurring_task_surfaces_on_its_next_day():
+    """After completing today's daily task, the fresh occurrence is hidden today
+    but appears in the plan for the following day."""
+    owner = Owner("Jordan")
+    pet = Pet("Mochi", "dog")
+    owner.add_pet(pet)
+    today = date.today()
+    walk = Task("Walk", time(7, 30), Frequency.DAILY, due_date=today)
+    pet.add_task(walk)
+    sched = Scheduler(owner)
+
+    sched.mark_task_complete(walk)
+
+    # Nothing pending for today (original is done, follow-up is future-dated).
+    assert sched.daily_schedule(today) == []
+    # The follow-up shows up tomorrow.
+    tomorrow_tasks = [t.description for _, t in sched.daily_schedule(today + timedelta(days=1))]
+    assert tomorrow_tasks == ["Walk"]
+
+
+def test_mark_complete_on_foreign_task_does_nothing():
+    """Completing a task that belongs to no pet of this owner returns None and
+    spawns no follow-up (no ownership, no side effects)."""
+    owner = Owner("Jordan")
+    pet = Pet("Mochi", "dog")
+    owner.add_pet(pet)
+    orphan = Task("Walk", time(7, 30), Frequency.DAILY)  # never added to a pet
+
+    result = Scheduler(owner).mark_task_complete(orphan)
+
+    assert result is None
+    assert orphan.completed is False
+    assert pet.get_tasks() == []
+
+
+# ---------------------------------------------------------------------------
+# Conflict detection — extra edge cases beyond the two same-time tasks.
+# ---------------------------------------------------------------------------
+
+def test_detect_conflicts_flags_three_way_overlap_in_one_warning():
+    """Three tasks at the same time collapse into a single warning naming all
+    three, not three separate warnings."""
+    owner = Owner("Jordan")
+    pet = Pet("Mochi", "dog")
+    owner.add_pet(pet)
+    pet.add_task(Task("Meds", time(8, 0)))
+    pet.add_task(Task("Feed", time(8, 0)))
+    pet.add_task(Task("Walk", time(8, 0)))
+
+    warnings = Scheduler(owner).detect_conflicts()
+
+    assert len(warnings) == 1
+    assert all(name in warnings[0] for name in ("Meds", "Feed", "Walk"))
+
+
+def test_detect_conflicts_reports_each_clashing_time_separately():
+    """Two independent time clashes yield two warnings, time-ordered."""
+    owner = Owner("Jordan")
+    pet = Pet("Mochi", "dog")
+    owner.add_pet(pet)
+    pet.add_task(Task("Meds", time(8, 0)))
+    pet.add_task(Task("Feed", time(8, 0)))
+    pet.add_task(Task("Walk", time(18, 0)))
+    pet.add_task(Task("Play", time(18, 0)))
+
+    warnings = Scheduler(owner).detect_conflicts()
+
+    assert len(warnings) == 2
+    assert "08:00" in warnings[0]   # earlier clash reported first
+    assert "18:00" in warnings[1]
+
+
+def test_detect_conflicts_ignores_completed_tasks():
+    """A completed task at the same time as a pending one is not a conflict —
+    only schedulable (pending, due) tasks are inspected."""
+    owner = Owner("Jordan")
+    pet = Pet("Mochi", "dog")
+    owner.add_pet(pet)
+    done = Task("Meds", time(8, 0))
+    done.mark_complete()
+    pet.add_task(done)
+    pet.add_task(Task("Feed", time(8, 0)))
+
+    assert Scheduler(owner).detect_conflicts() == []
+
+
+# ---------------------------------------------------------------------------
+# Empty / boundary states — a pet with no tasks, an owner with no pets, etc.
+# ---------------------------------------------------------------------------
+
+def test_pet_with_no_tasks_has_empty_schedule():
+    """An owner whose pet has no tasks produces an empty plan and no next task,
+    without raising."""
+    owner = Owner("Jordan")
+    owner.add_pet(Pet("Mochi", "dog"))
+    sched = Scheduler(owner)
+
+    assert sched.daily_schedule() == []
+    assert sched.pending_tasks() == []
+    assert sched.next_task() is None
+
+
+def test_owner_with_no_pets_reports_nothing_pending():
+    """With no pets at all, the rendered schedule says nothing is pending."""
+    sched = Scheduler(Owner("Jordan"))
+
+    assert sched.all_tasks() == []
+    assert "nothing pending" in sched.render_schedule()
+
+
+def test_next_task_returns_earliest_pending():
+    """next_task() is the first entry of the ordered daily schedule."""
+    owner = Owner("Jordan")
+    pet = Pet("Mochi", "dog")
+    owner.add_pet(pet)
+    pet.add_task(Task("Dinner", time(19, 0)))
+    pet.add_task(Task("Breakfast", time(7, 0)))
+
+    pet_out, task_out = Scheduler(owner).next_task()
+
+    assert pet_out is pet
+    assert task_out.description == "Breakfast"
+
+
+def test_completed_tasks_excluded_from_pending_and_duration():
+    """Completed tasks drop out of the pending list and stop counting toward the
+    pending-duration total."""
+    owner = Owner("Jordan")
+    pet = Pet("Mochi", "dog")
+    owner.add_pet(pet)
+    done = Task("Walk", time(7, 0), duration_minutes=30)
+    done.mark_complete()
+    pet.add_task(done)
+    pet.add_task(Task("Feed", time(8, 0), duration_minutes=15))
+    sched = Scheduler(owner)
+
+    assert [t.description for t in sched.pending_tasks()] == ["Feed"]
+    assert sched.total_duration() == 15  # the completed 30-min walk is not counted
+
+
+def test_filter_tasks_by_pet_and_completion():
+    """filter_tasks narrows by owning pet's name and by completion status;
+    passing neither returns everything."""
+    owner = Owner("Jordan")
+    mochi = Pet("Mochi", "dog")
+    luna = Pet("Luna", "cat")
+    owner.add_pet(mochi)
+    owner.add_pet(luna)
+    done = Task("Walk", time(7, 0))
+    done.mark_complete()
+    mochi.add_task(done)
+    mochi.add_task(Task("Feed", time(8, 0)))
+    luna.add_task(Task("Groom", time(9, 0)))
+    sched = Scheduler(owner)
+
+    assert len(sched.filter_tasks()) == 3                     # no filter → all
+    assert {t.description for t in sched.filter_tasks(pet_name="Mochi")} == {"Walk", "Feed"}
+    assert [t.description for t in sched.filter_tasks(completed=True)] == ["Walk"]
+    assert [t.description for t in sched.filter_tasks(completed=False, pet_name="Mochi")] == ["Feed"]
+
+
+def test_end_time_clamps_at_end_of_day():
+    """A task whose duration would spill past midnight is clamped to 23:59
+    rather than rolling into the next day."""
+    late = Task("Late night check", time(23, 50), duration_minutes=30)
+
+    assert late.end_time() == time(23, 59)
