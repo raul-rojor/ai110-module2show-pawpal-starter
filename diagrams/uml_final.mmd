@@ -1,0 +1,123 @@
+classDiagram
+    %% PawPal+ — final class model for the logic layer (pawpal_system.py)
+    %% plus the Streamlit UI (app.py) that drives it. Kept in sync with the build.
+
+    class Frequency {
+        <<enumeration>>
+        ONCE
+        DAILY
+        WEEKLY
+        +__str__() str
+    }
+
+    class Priority {
+        <<enumeration>>
+        HIGH
+        MEDIUM
+        LOW
+        +__str__() str
+    }
+
+    class TimeWindow {
+        <<dataclass, frozen>>
+        +time start
+        +time end
+        +contains(time t) bool
+        +__str__() str
+    }
+
+    class Preferences {
+        +dict~str, list~TimeWindow~~ windows
+        +prefer(str activity, time start, time end) None
+        +windows_for(str description) list~TimeWindow~
+        +is_satisfied(Task task) bool
+    }
+
+    class Task {
+        <<dataclass>>
+        +str description
+        +time time
+        +Frequency frequency
+        +int duration_minutes
+        +Priority priority
+        +date due_date
+        +bool completed
+        +mark_complete() None
+        +mark_incomplete() None
+        +toggle() None
+        +next_occurrence() Task
+        +end_time() time
+        +__str__() str
+    }
+
+    class Pet {
+        +str name
+        +str species
+        +list~Task~ tasks
+        +add_task(Task task) None
+        +remove_task(Task task) None
+        +get_tasks() list~Task~
+        +get_pending_tasks() list~Task~
+        +__str__() str
+    }
+
+    class Owner {
+        +str name
+        +list~Pet~ pets
+        +Preferences preferences
+        +add_pet(Pet pet) None
+        +remove_pet(Pet pet) None
+        +get_pets() list~Pet~
+        +get_all_tasks() list~Task~
+        +iter_pet_tasks() list~tuple~Pet, Task~~
+        +__str__() str
+    }
+
+    class Scheduler {
+        +Owner owner
+        +all_tasks() list~Task~
+        +pending_tasks() list~Task~
+        +total_duration() int
+        +daily_schedule(date on_date) list~tuple~Pet, Task~~
+        +tasks_for_pet(Pet pet) list~Task~
+        +sort_by_time() list~Task~
+        +filter_tasks(bool completed, str pet_name) list~Task~
+        +group_by_frequency() dict~Frequency, list~Task~~
+        +group_by_priority() dict~Priority, list~Task~~
+        +next_task() tuple~Pet, Task~
+        +detect_conflicts(date on_date) list~str~
+        +preference_warnings(date on_date) list~str~
+        +mark_task_complete(Task task) Task
+        +explain() list~str~
+        +render_schedule(str title) str
+    }
+
+    class StreamlitApp {
+        <<UI · app.py>>
+        +session_state owner
+        +add pet / schedule task (widgets)
+        +Your Day's Plan : daily_schedule + detect_conflicts + preference_warnings
+        +Mark a task complete : mark_task_complete
+        +Browse tasks : filter_tasks
+        +Terminal view : render_schedule
+    }
+
+    %% Ownership (composition): the owner/pet own their pets/tasks/preferences.
+    Owner "1" *-- "0..*" Pet : keeps
+    Owner "1" *-- "1" Preferences : has
+    Pet "1" *-- "0..*" Task : schedules
+    Preferences "1" *-- "1..*" TimeWindow : allows
+
+    %% Task's categorical fields are the two enums.
+    Task --> Frequency : recurs by
+    Task --> Priority : ranked by
+
+    %% Scheduler reads its data through the Owner's public accessors only.
+    Scheduler "1" --> "1" Owner : reads from
+    Scheduler ..> Task : orders / completes
+    Scheduler ..> Pet : pairs tasks with
+    Preferences ..> Task : evaluates
+
+    %% The UI holds one Owner in session and calls the Scheduler for every view.
+    StreamlitApp "1" o-- "1" Owner : holds in session
+    StreamlitApp ..> Scheduler : builds per rerun
