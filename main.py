@@ -18,13 +18,16 @@ def main() -> None:
     owner.add_pet(mochi)
     owner.add_pet(luna)
 
-    # 2. Add tasks with different times and priorities to the pets.
-    #    Note the two 08:00 tasks: priority breaks the tie so Meds (HIGH)
-    #    lands before Feed (MEDIUM).
+    # 2. Add tasks with different times and priorities to the pets. Two pairs
+    #    deliberately clash so the conflict check has something to catch:
+    #      - 08:00 across pets: Meds (Mochi) and Feed (Luna)
+    #      - 18:00 same pet:    Evening walk and Playtime (both Mochi)
+    #    (Priority also breaks the 08:00 tie so Meds (HIGH) lands before Feed.)
     morning_walk = Task("Morning walk", time(7, 30), Frequency.DAILY, duration_minutes=30, priority=Priority.MEDIUM)
     mochi.add_task(morning_walk)
     mochi.add_task(Task("Meds", time(8, 0), Frequency.DAILY, duration_minutes=5, priority=Priority.HIGH))
     mochi.add_task(Task("Evening walk", time(18, 0), Frequency.DAILY, duration_minutes=20, priority=Priority.LOW))
+    mochi.add_task(Task("Playtime", time(18, 0), Frequency.DAILY, duration_minutes=15, priority=Priority.MEDIUM))
     luna.add_task(Task("Feed", time(8, 0), Frequency.DAILY, duration_minutes=10, priority=Priority.MEDIUM))
     luna.add_task(Task("Vet visit", time(15, 0), Frequency.WEEKLY, duration_minutes=45, priority=Priority.HIGH))
 
@@ -56,6 +59,16 @@ def main() -> None:
     # 6. The full time-ordered plan for good measure.
     print()
     print(scheduler.render_schedule())
+
+    # 7. Conflict check: warn (don't crash) about tasks sharing a start time.
+    print()
+    conflicts = scheduler.detect_conflicts()
+    if conflicts:
+        print("Schedule warnings:")
+        for warning in conflicts:
+            print(f"  {warning}")
+    else:
+        print("No scheduling conflicts. 🎉")
 
 
 if __name__ == "__main__":

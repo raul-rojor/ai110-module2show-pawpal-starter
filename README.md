@@ -44,10 +44,11 @@ pip install -r requirements.txt
 
 ## 🖥️ Sample Output
 
-Running `python3 main.py` adds tasks out of order, completes a recurring task
-(which auto-creates its next occurrence), then demonstrates sorting and filtering
-before printing the day's plan. The two dates are shown as placeholders here
-because they're computed from the current date at runtime:
+Running `python3 main.py` adds tasks out of order (with two deliberate time
+clashes), completes a recurring task (which auto-creates its next occurrence),
+then demonstrates sorting, filtering, and conflict detection before printing the
+day's plan. The two dates are shown as placeholders here because they're computed
+from the current date at runtime:
 
 ```
 Completed 'Morning walk' (due <today>). Next occurrence auto-scheduled for <today + 1 day>.
@@ -59,6 +60,7 @@ All tasks sorted by time:
   ⬜ 08:00 (10m) — Feed [Medium] (daily)
   ⬜ 15:00 (45m) — Vet visit [High] (weekly)
   ⬜ 18:00 (20m) — Evening walk [Low] (daily)
+  ⬜ 18:00 (15m) — Playtime [Medium] (daily)
 
 Luna's tasks only:
   ⬜ 08:00 (10m) — Feed [Medium] (daily)
@@ -67,6 +69,7 @@ Luna's tasks only:
 Still-pending tasks:
   ⬜ 08:00 (5m) — Meds [High] (daily)
   ⬜ 18:00 (20m) — Evening walk [Low] (daily)
+  ⬜ 18:00 (15m) — Playtime [Medium] (daily)
   ⬜ 07:30 (30m) — Morning walk [Medium] (daily)
   ⬜ 08:00 (10m) — Feed [Medium] (daily)
   ⬜ 15:00 (45m) — Vet visit [High] (weekly)
@@ -78,9 +81,14 @@ Today's Schedule — Jordan
  08:00-08:05 ⬜  Mochi  Meds           5m  High    daily
  08:00-08:10 ⬜  Luna   Feed          10m  Medium  daily
  15:00-15:45 ⬜  Luna   Vet visit     45m  High    weekly
+ 18:00-18:15 ⬜  Mochi  Playtime      15m  Medium  daily
  18:00-18:20 ⬜  Mochi  Evening walk  20m  Low     daily
 ──────────────────────────────────────────────────────
-4 pending · 80 min total · next: Meds @ 08:00
+5 pending · 95 min total · next: Meds @ 08:00
+
+Schedule warnings:
+  ⚠️  Conflict at 08:00 — 2 tasks overlap: Meds (Mochi), Feed (Luna).
+  ⚠️  Conflict at 18:00 — 2 tasks overlap: Playtime (Mochi), Evening walk (Mochi).
 ```
 
 ## 🧪 Testing PawPal+
@@ -101,14 +109,12 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Task sorting | `Scheduler.sort_by_time`, `Scheduler.daily_schedule` | Ordered by start time; priority breaks ties between same-time tasks |
+| Filtering | `Scheduler.filter_tasks`, `Scheduler.pending_tasks` | By completion status and/or pet name; schedule also drops future-dated tasks |
+| Conflict handling | `Scheduler.detect_conflicts` | Flags tasks (same or different pet) sharing a start time; returns warnings instead of crashing |
+| Recurring tasks | `Task.next_occurrence`, `Scheduler.mark_task_complete` | Completing a daily/weekly task auto-creates the next occurrence (+1 day / +7 days via `timedelta`) |
 
 ## 📸 Demo Walkthrough
 

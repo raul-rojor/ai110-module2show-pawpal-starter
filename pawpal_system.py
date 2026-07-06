@@ -253,6 +253,30 @@ class Scheduler:
         schedule = self.daily_schedule()
         return schedule[0] if schedule else None
 
+    def detect_conflicts(self, on_date: date | None = None) -> list[str]:
+        """Lightweight conflict check for the day's plan: flag any tasks that
+        share the same start time, whether they belong to the same pet or to
+        different pets.
+
+        Returns a list of human-readable warning strings — empty when the day is
+        conflict-free — so callers can print a heads-up instead of the program
+        crashing. Only the schedulable tasks from daily_schedule() are inspected,
+        so completed and future-dated tasks never raise a false alarm."""
+        by_time: dict[time, list[tuple[Pet, Task]]] = {}
+        for pet, task in self.daily_schedule(on_date):
+            by_time.setdefault(task.time, []).append((pet, task))
+
+        warnings: list[str] = []
+        for start, pairs in sorted(by_time.items()):
+            if len(pairs) > 1:
+                who = ", ".join(f"{task.description} ({pet.name})"
+                                for pet, task in pairs)
+                warnings.append(
+                    f"⚠️  Conflict at {start.strftime('%H:%M')} — "
+                    f"{len(pairs)} tasks overlap: {who}."
+                )
+        return warnings
+
     def mark_task_complete(self, task: Task) -> Task | None:
         """Mark a task done and, if it recurs (daily/weekly), add its next
         occurrence to the owning pet so the plan refills itself automatically.

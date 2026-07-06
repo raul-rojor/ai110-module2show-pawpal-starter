@@ -107,6 +107,35 @@ def test_completing_once_task_does_not_recur():
     assert len(pet.get_tasks()) == 1
 
 
+def test_detect_conflicts_flags_same_time_tasks():
+    """Two tasks sharing a start time — even across different pets — produce a
+    warning string rather than raising."""
+    owner = Owner("Jordan")
+    mochi = Pet("Mochi", "dog")
+    luna = Pet("Luna", "cat")
+    owner.add_pet(mochi)
+    owner.add_pet(luna)
+    mochi.add_task(Task("Meds", time(8, 0)))
+    luna.add_task(Task("Feed", time(8, 0)))
+
+    warnings = Scheduler(owner).detect_conflicts()
+
+    assert len(warnings) == 1
+    assert "08:00" in warnings[0]
+    assert "Meds" in warnings[0] and "Feed" in warnings[0]
+
+
+def test_detect_conflicts_returns_empty_when_no_overlap():
+    """Tasks at distinct times produce no warnings."""
+    owner = Owner("Jordan")
+    pet = Pet("Mochi", "dog")
+    owner.add_pet(pet)
+    pet.add_task(Task("Walk", time(7, 30)))
+    pet.add_task(Task("Feed", time(8, 0)))
+
+    assert Scheduler(owner).detect_conflicts() == []
+
+
 def test_daily_schedule_excludes_future_dated_tasks():
     """The day's plan shows today's (and overdue) tasks but hides ones due on a
     later date, such as an auto-created next occurrence."""
