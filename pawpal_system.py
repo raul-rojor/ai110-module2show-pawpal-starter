@@ -183,6 +183,28 @@ class Scheduler:
         """Pending tasks for one pet, ordered by time (priority breaks ties)."""
         return sorted(pet.get_pending_tasks(), key=lambda t: (t.time, t.priority.value))
 
+    def sort_by_time(self) -> list[Task]:
+        """Every task sorted by start time, earliest first.
+
+        `task.time` is a datetime.time, which compares chronologically on its
+        own, so the lambda keys straight on it — no HH:MM string parsing needed."""
+        return sorted(self.all_tasks(), key=lambda task: task.time)
+
+    def filter_tasks(self, completed: bool | None = None,
+                     pet_name: str | None = None) -> list[Task]:
+        """Tasks filtered by completion status and/or owning pet's name.
+
+        Pass either or both; a None argument means 'don't filter on that field',
+        so filter_tasks() with no arguments returns everything."""
+        matches: list[Task] = []
+        for pet, task in self.owner.iter_pet_tasks():
+            if completed is not None and task.completed != completed:
+                continue
+            if pet_name is not None and pet.name != pet_name:
+                continue
+            matches.append(task)
+        return matches
+
     def group_by_frequency(self) -> dict[Frequency, list[Task]]:
         """Bucket all tasks by how often they recur."""
         buckets: dict[Frequency, list[Task]] = {f: [] for f in Frequency}

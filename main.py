@@ -27,8 +27,28 @@ def main() -> None:
     luna.add_task(Task("Feed", time(8, 0), Frequency.DAILY, duration_minutes=10, priority=Priority.MEDIUM))
     luna.add_task(Task("Vet visit", time(15, 0), Frequency.WEEKLY, duration_minutes=45, priority=Priority.HIGH))
 
-    # 3. Build the schedule and print it, ordered by time across all pets.
+    # 3. Mark one task done so the completion filter has something to hide.
+    mochi.get_tasks()[0].mark_complete()  # Morning walk
+
     scheduler = Scheduler(owner)
+
+    # 4. Sorting: tasks come back in time order even though they were added
+    #    out of order above (18:00 before 08:00, etc.).
+    print("All tasks sorted by time:")
+    for task in scheduler.sort_by_time():
+        print(f"  {task}")
+
+    # 5. Filtering: by pet name, then by completion status.
+    print("\nLuna's tasks only:")
+    for task in scheduler.filter_tasks(pet_name="Luna"):
+        print(f"  {task}")
+
+    print("\nStill-pending tasks:")
+    for task in scheduler.filter_tasks(completed=False):
+        print(f"  {task}")
+
+    # 6. The full time-ordered plan for good measure.
+    print()
     print(scheduler.render_schedule())
 
 
