@@ -97,9 +97,9 @@ Preference warnings:
 
 ## 🧪 Testing PawPal+
 
-```bash
+'''bash
 .venv/bin/python -m pytest tests/test_pawpal.py
-```
+'''
 
 Sample test output:
 
@@ -113,6 +113,9 @@ collected 28 items
 tests/test_pawpal.py ............................                                                                                             [100%]
 
 ================================================================ 28 passed in 0.02s =================================================================
+```
+```Confidence level from tests:
+5/5
 ```
 
 ## 📐 Smarter Scheduling
