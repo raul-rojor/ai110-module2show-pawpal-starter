@@ -19,6 +19,19 @@ class Frequency(Enum):
         return self.value
 
 
+class Priority(Enum):
+    """How urgent a task is. The numeric value doubles as the sort rank
+    (1 = most urgent) so the Scheduler can break ties between same-time tasks
+    without needing a separate lookup table."""
+    HIGH = 1
+    MEDIUM = 2
+    LOW = 3
+
+    def __str__(self) -> str:
+        """Return a capitalized label (e.g. 'High') for display."""
+        return self.name.capitalize()
+
+
 @dataclass
 class Task:
     """A single activity for a pet: what to do, when, how often, and whether
@@ -27,6 +40,7 @@ class Task:
     time: time
     frequency: Frequency = Frequency.DAILY
     duration_minutes: int = 15
+    priority: Priority = Priority.MEDIUM
     completed: bool = False
 
     def mark_complete(self) -> None:
@@ -49,10 +63,10 @@ class Task:
         return time(total // 60, total % 60)
 
     def __str__(self) -> str:
-        """Return a one-line summary with status, time, duration, and frequency."""
+        """Return a one-line summary with status, time, duration, priority, and frequency."""
         box = "✅" if self.completed else "⬜"
         return (f"{box} {self.time.strftime('%H:%M')} ({self.duration_minutes}m) "
-                f"— {self.description} ({self.frequency})")
+                f"— {self.description} [{self.priority}] ({self.frequency})")
 
 
 class Pet:
@@ -158,21 +172,29 @@ class Scheduler:
         return sum(t.duration_minutes for t in self.pending_tasks())
 
     def daily_schedule(self) -> list[tuple[Pet, Task]]:
-        """The plan for the day: every pending (Pet, Task) pair ordered by time
-        so the owner sees what to do and in what order."""
+        """The plan for the day: every pending (Pet, Task) pair ordered by time,
+        with priority breaking ties so the more urgent of two same-time tasks
+        comes first."""
         pending = [(pet, task) for pet, task in self.owner.iter_pet_tasks()
                    if not task.completed]
-        return sorted(pending, key=lambda pair: pair[1].time)
+        return sorted(pending, key=lambda pair: (pair[1].time, pair[1].priority.value))
 
     def tasks_for_pet(self, pet: Pet) -> list[Task]:
-        """Pending tasks for one pet, ordered by time."""
-        return sorted(pet.get_pending_tasks(), key=lambda t: t.time)
+        """Pending tasks for one pet, ordered by time (priority breaks ties)."""
+        return sorted(pet.get_pending_tasks(), key=lambda t: (t.time, t.priority.value))
 
     def group_by_frequency(self) -> dict[Frequency, list[Task]]:
         """Bucket all tasks by how often they recur."""
         buckets: dict[Frequency, list[Task]] = {f: [] for f in Frequency}
         for task in self.all_tasks():
             buckets[task.frequency].append(task)
+        return buckets
+
+    def group_by_priority(self) -> dict[Priority, list[Task]]:
+        """Bucket all tasks by urgency, most urgent first."""
+        buckets: dict[Priority, list[Task]] = {p: [] for p in Priority}
+        for task in self.all_tasks():
+            buckets[task.priority].append(task)
         return buckets
 
     def next_task(self) -> tuple[Pet, Task] | None:
@@ -188,15 +210,15 @@ class Scheduler:
             lines.append(
                 f"{task.time.strftime('%H:%M')}–{task.end_time().strftime('%H:%M')} "
                 f"({task.duration_minutes}m) — {task.description} for "
-                f"{pet.name} ({task.frequency})"
+                f"{pet.name} [{task.priority} priority] ({task.frequency})"
             )
         return lines
 
     def render_schedule(self, title: str = "Today's Schedule") -> str:
         """Format the day's plan as an aligned, columnar table for the terminal.
 
-        Columns (TIME / status / PET / TASK / MIN / FREQ) size themselves to the
-        widest value so everything lines up regardless of name length."""
+        Columns (TIME / status / PET / TASK / MIN / PRI / FREQ) size themselves to
+        the widest value so everything lines up regardless of name length."""
         rows = self.daily_schedule()
         heading = f"{title} — {self.owner.name}"
 
@@ -208,13 +230,14 @@ class Scheduler:
         pet_w = max(len("PET"), *(len(pet.name) for pet, _ in rows))
         task_w = max(len("TASK"), *(len(task.description) for _, task in rows))
         min_w = max(len("MIN"), *(len(f"{task.duration_minutes}m") for _, task in rows))
+        pri_w = max(len("PRI"), *(len(str(task.priority)) for _, task in rows))
         freq_w = max(len("FREQ"), *(len(str(task.frequency)) for _, task in rows))
 
-        def line(t: str, mark: str, pet: str, task: str, mins: str, freq: str) -> str:
+        def line(t: str, mark: str, pet: str, task: str, mins: str, pri: str, freq: str) -> str:
             return (f" {t:<11} {mark:<1}  {pet:<{pet_w}}  {task:<{task_w}}  "
-                    f"{mins:>{min_w}}  {freq:<{freq_w}}").rstrip()
+                    f"{mins:>{min_w}}  {pri:<{pri_w}}  {freq:<{freq_w}}").rstrip()
 
-        header = line("TIME", "✓", "PET", "TASK", "MIN", "FREQ")
+        header = line("TIME", "✓", "PET", "TASK", "MIN", "PRI", "FREQ")
         rule = "─" * len(header)
 
         body = [
@@ -224,6 +247,7 @@ class Scheduler:
                 pet.name,
                 task.description,
                 f"{task.duration_minutes}m",
+                str(task.priority),
                 str(task.frequency),
             )
             for pet, task in rows

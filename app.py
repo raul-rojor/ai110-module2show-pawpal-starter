@@ -1,7 +1,7 @@
 import streamlit as st
 from datetime import time
 
-from pawpal_system import Owner, Pet, Task, Scheduler, Frequency
+from pawpal_system import Owner, Pet, Task, Scheduler, Frequency, Priority
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
 
@@ -78,7 +78,7 @@ st.markdown("### Schedule a Task")
 if not pets:
     st.caption("Add a pet before scheduling tasks.")
 else:
-    col1, col2, col3, col4, col5 = st.columns(5)
+    col1, col2, col3, col4, col5, col6 = st.columns(6)
     with col1:
         pet_choice = st.selectbox("For pet", [p.name for p in pets])
     with col2:
@@ -90,14 +90,27 @@ else:
             "Duration (min)", min_value=1, max_value=240, value=20
         )
     with col5:
+        priority = st.selectbox(
+            "Priority", [str(p) for p in Priority], index=1
+        )
+    with col6:
         freq = st.selectbox("Frequency", [f.value for f in Frequency], index=1)
 
     if st.button("Add task"):
         pet = next(p for p in pets if p.name == pet_choice)
         pet.add_task(
-            Task(task_title, task_time, Frequency(freq), duration_minutes=int(duration))
+            Task(
+                task_title,
+                task_time,
+                Frequency(freq),
+                duration_minutes=int(duration),
+                priority=Priority[priority.upper()],
+            )
         )
-        st.success(f"Added '{task_title}' ({int(duration)} min) for {pet.name}.")
+        st.success(
+            f"Added '{task_title}' ({int(duration)} min, {priority} priority) "
+            f"for {pet.name}."
+        )
 
 # Show every task across all pets, pulled through the Owner's public accessor.
 all_tasks = owner.iter_pet_tasks()
@@ -109,6 +122,7 @@ if all_tasks:
             "task": task.description,
             "time": task.time.strftime("%H:%M"),
             "duration": f"{task.duration_minutes} min",
+            "priority": str(task.priority),
             "frequency": str(task.frequency),
             "done": task.completed,
         }
