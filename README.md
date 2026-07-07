@@ -132,10 +132,11 @@ tests/test_pawpal.py ............................                               
 
 Describe your app in numbered steps so a reader can follow along without watching a video:
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+1. The app loads and welcomes the user by describing the app's purpose.
+2. The user inputs their name in the 'Owner name' box which allows user input.
+3. The user inputs their preferred time window for tasks in the 'Care Preferences' section by inputting data into the 'activity keyword,' 'preferred from,' and 'preferred until' boxes and clicking the 'add preference' button for each activity.
+4. The user adds their pets in the 'Add a Pet' section by inputting data into the 'pet name' and 'species' boxes and clicking the 'add pet' button for each of their pets.
+5. The user is then prompted to schedule a task. The user is asked for which pet the particular task is in the box 'for pet,' the task to be done in the box 'task,' the time it should be done at in the box 'time,' the priority of the task under 'priority,' the duration of the task under 'duration (min),' and the frequency of the task in the box 'frequency.'
+6. The app then outputs a schedule sorted in chronological order, states if there are time conflicts in the schedule, indicated the pending status of each task and allows the user to mark them as done, and allows the user to browse tasks in their schdule by the pet they pertain to or pending status.
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
