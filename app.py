@@ -11,7 +11,7 @@ st.markdown(
     """
 Plan the day's care for all of your pets in one place. Add pets and tasks below and
 PawPal+ builds a **time-ordered schedule**, flags **timing conflicts**, and lets you
-**filter** by pet or status — all powered by the `Scheduler` logic layer.
+**filter** by pet or status.
 """
 )
 
@@ -33,6 +33,39 @@ owner = st.session_state.owner
 
 st.subheader("Owner")
 owner.name = st.text_input("Owner name", value=owner.name)
+
+st.markdown("### Care Preferences")
+st.caption(
+    "Set a preferred time window for a kind of activity. The keyword is matched "
+    "against task descriptions (e.g. 'walk' matches 'Morning walk'), and any task "
+    "booked outside its window gets a gentle heads-up in the plan below."
+)
+col_act, col_start, col_end = st.columns(3)
+with col_act:
+    pref_activity = st.text_input("Activity keyword", value="walk")
+with col_start:
+    pref_start = st.time_input("Preferred from", value=time(6, 0))
+with col_end:
+    pref_end = st.time_input("Preferred until", value=time(10, 0))
+
+if st.button("Add preference"):
+    if not pref_activity.strip():
+        st.warning("Enter an activity keyword first (e.g. 'walk' or 'feed').")
+    elif pref_start > pref_end:
+        st.warning("The start of the window must be at or before its end.")
+    else:
+        owner.preferences.prefer(pref_activity.strip(), pref_start, pref_end)
+        st.success(
+            f"Preference added: '{pref_activity.strip()}' between "
+            f"{pref_start.strftime('%H:%M')} and {pref_end.strftime('%H:%M')}."
+        )
+
+# Show what's active. An activity can have several windows (call prefer() again),
+# so morning *and* evening feeds are both expressible.
+if owner.preferences.windows:
+    st.write("Current preferences:")
+    for activity, windows in owner.preferences.windows.items():
+        st.write(f"• **{activity}** — {', '.join(str(w) for w in windows)}")
 
 st.markdown("### Add a Pet")
 col_name, col_species = st.columns(2)
